@@ -1,59 +1,85 @@
 const Apify = require('apify');
-const neatCsv = require('neat-csv');
 
 const LATEST = 'LATEST';
 const parseNum = (str) => {
-    return parseInt(str.replace(',', ''), 10);
+    return parseInt(str.replace('.', ''), 10);
 };
 Apify.main(async () => {
-    const url = 'https://www.cdc.gov/coronavirus/2019-ncov/cases-in-us.html';
-    const kvStore = await Apify.openKeyValueStore('COVID-19-USA-CDC');
-    const dataset = await Apify.openDataset('COVID-19-USA-CDC-HISTORY');
+    const url = 'https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html';
+    const kvStore = await Apify.openKeyValueStore('COVID-19-AUSTRIA-CDC');
+    const dataset = await Apify.openDataset('COVID-19-AUSTRIA-HISTORY');
 
-    const browser = await Apify.launchPuppeteer({ useApifyProxy: true, apifyProxyGroups: ['SHADER']});
+    const browser = await Apify.launchPuppeteer({ useApifyProxy: true, apifyProxyGroups: ['SHADER'] });
     const page = await browser.newPage();
     await Apify.utils.puppeteer.injectJQuery(page);
-    let casesByStateCsv = '';
-    let json = '';
-    page.on('response', async (res) => {
-        if (res.url() === 'https://www.cdc.gov/coronavirus/2019-ncov/map-data-cases.csv') {
-            casesByStateCsv = await res.text();
-        } else if (res.url() === 'https://www.cdc.gov/coronavirus/2019-ncov/us-cases-epi-chart.json') {
-            json = await res.json();
-        }
-    });
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
     const extracted = await page.evaluate(() => {
-        const totalCases = $('li:contains(Total cases)').text().replace('Total cases:', '').trim();
-        const totalDeaths = $('li:contains(Total deaths)').text().replace('Total deaths:', '').trim();
-        const updatedAtSource = $('.text-red:contains(Updated)').text().replace('Updated', '').trim();
-        let dateUpdated = new Date(updatedAtSource);
-        dateUpdated = new Date(Date.UTC(dateUpdated.getFullYear(), dateUpdated.getMonth(), dateUpdated.getDate())).toISOString();
+        const getNameAndValue = (str) => {
+            const split = str.split(' (');
+            return { name: split[0].trim(), value: parseInt(split[1].replace(')', '').trim(), 10) };
+        };
+        const processInfoString = (str) => {
+            const split = str.split(',');
+            split.splice(0, 3);
+            const info = [];
+            split.forEach((region) => {
+                const regionString = region.replace('nach Bundesländern:', '').trim();
+                if (regionString.includes('und')) {
+                    const [first, second] = regionString.split('und');
+                    info.push(getNameAndValue(first));
+                    info.push(getNameAndValue(second));
+                } else {
+                    info.push(getNameAndValue(regionString));
+                }
+            });
+            return info;
+        };
+        const basicInfo = Array.from(document.querySelectorAll('.abstract strong')).map(info => info.textContent);
+        const totalTested = basicInfo[1];
+        const additionalInfo = basicInfo[2].split('\n');
+        const totalInfected = additionalInfo[0].replace('Bestätigte Fälle: ', '');
+        const totalCured = additionalInfo[1].replace('Genesene Personen: ', '');
+        const totalDeaths = additionalInfo[2].replace('Todesfälle: ', '');
+        const [text, date, hours] = basicInfo[0].split(',');
+        const splitDate = date.split('.');
+        const dummyDate = new Date(`${splitDate[1]}/${splitDate[0]}/${splitDate[2]} ${hours.trim().slice(0, 4)}`);
+        const lastUpdated = new Date(Date.UTC(dummyDate.getFullYear(), dummyDate.getMonth(), dummyDate.getDate(), dummyDate.getHours()));
 
-        return { totalDeaths, totalCases,dateUpdated };
+        const infectedByRegionString = $('p:contains(Bestätigte Fälle,)').text();
+        const infectedByRegion = processInfoString(infectedByRegionString);
+
+
+        const curedByRegionString = $('p:contains(Genesene Personen,)').text();
+        const curedByRegion = processInfoString(curedByRegionString);
+
+        // TODO: Fix after there are more examples :(
+        const deathByRegionString = $('p:contains(Todesfälle,)').text();
+        const deathByRegion = processInfoString(deathByRegionString);
+
+
+        return {
+            totalTested,
+            totalInfected,
+            totalCured,
+            totalDeaths,
+            lastUpdated: lastUpdated.toISOString(),
+            infectedByRegion,
+            curedByRegion,
+            deathByRegion,
+        };
     });
-    const casesByStateCsvParsed = await neatCsv(casesByStateCsv);
-    const { columns: [dates, values] } = json.data;
-    dates.splice(0, 1);
-    values.splice(0, 1);
+
     const now = new Date();
     const data = {
-        totalCases: parseNum(extracted.totalCases),
+        totalTested: parseNum(extracted.totalTested),
+        totalCases: parseNum(extracted.totalInfected),
         totalDeaths: parseNum(extracted.totalDeaths),
-        casesByState: casesByStateCsvParsed.map(row => ({
-            name: row.Name,
-            range: row.Range,
-            casesReported: parseNum(row['Cases Reported']),
-            communityTransmission: row['Community Transmission'],
-        })),
-        casesByDays: dates.map((value, index) => {
-            const dataSplit = value.split('/');
-            return { date: new Date(Date.UTC(dataSplit[2], dataSplit[0], dataSplit[1])).toISOString(), value: parseNum(values[index]) };
-        }),
+        infectedByRegion: extracted.infectedByRegion,
+        curedByRegion: extracted.curedByRegion,
         sourceUrl: url,
-        lastUpdatedAtSource: extracted.dateUpdated,
+        lastUpdatedAtSource: extracted.lastUpdated,
         lastUpdatedAtApify: new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, now.getMinutes())).toISOString(),
-        readMe: 'https://apify.com/petrpatek/covid-usa-cdc',
+        readMe: 'https://apify.com/petrpatek/covid-austria',
     };
 
 
