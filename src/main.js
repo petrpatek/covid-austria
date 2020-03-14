@@ -50,6 +50,7 @@ Apify.main(async () => {
             const dataSplit = value.split('/');
             return { date: new Date(Date.UTC(dataSplit[2], dataSplit[0], dataSplit[1])).toISOString(), value: parseNum(values[index]) };
         }),
+        sourceUrl: url,
         lastUpdatedAtSource: extracted.dateUpdated,
         lastUpdatedAtApify: new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, now.getMinutes())).toISOString(),
         readMe: 'https://apify.com/petrpatek/covid-usa-cdc',
