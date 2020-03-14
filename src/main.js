@@ -6,7 +6,7 @@ const parseNum = (str) => {
 };
 Apify.main(async () => {
     const url = 'https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html';
-    const kvStore = await Apify.openKeyValueStore('COVID-19-AUSTRIA-CDC');
+    const kvStore = await Apify.openKeyValueStore('COVID-19-AUSTRIA');
     const dataset = await Apify.openDataset('COVID-19-AUSTRIA-HISTORY');
 
     const browser = await Apify.launchPuppeteer({ useApifyProxy: true, apifyProxyGroups: ['SHADER'] });
