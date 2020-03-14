@@ -1,6 +1,6 @@
 {
-  "title": "USA CDC  COVID-19 stats",
-  "description": "This actor scrapes data about COVID-19 from the USA CDS",
+  "title": "Austria COVID-19 stats",
+  "description": "This actor scrapes data about COVID-19 for the Austria",
   "type": "object",
   "schemaVersion": 1,
   "properties": {},

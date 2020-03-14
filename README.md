@@ -1,5 +1,5 @@
-# Coronavirus stats in the USA
-Actor gets an actual number of examined and infected people in the USA from https://www.cdc.gov/coronavirus/2019-ncov/cases-in-us.html
+# Coronavirus stats in the Austria
+Actor gets an actual number of examined and infected people in the Austria from https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html
 
 Latest data are available at this URL: https://api.apify.com/v2/key-value-stores/moxA3Q0aZh5LosewB/records/LATEST?disableRedirect=true.
 
