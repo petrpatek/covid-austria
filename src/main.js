@@ -35,12 +35,13 @@ Apify.main(async () => {
             return info;
         };
         const basicInfo = Array.from(document.querySelectorAll('.abstract strong')).map(info => info.textContent);
-        const totalTested = basicInfo[1];
-        const additionalInfo = basicInfo[2].split('\n');
-        const totalInfected = additionalInfo[0].replace('Bestätigte Fälle: ', '');
-        const totalCured = additionalInfo[1].replace('Genesene Personen: ', '');
-        const totalDeaths = additionalInfo[2].replace('Todesfälle: ', '');
-        const [text, date, hours] = basicInfo[0].split(',');
+        const totalTested = $('strong:contains(Bisher durchgeführte Testungen)').next().text().trim();
+        console.log(totalTested);
+        const totalInfected = $('strong:contains(Bestätigte Fälle)').next().text().trim();
+        const additionalInfo = $('strong:contains(Genesene Personen)').text().split('\n');
+        const totalCured = additionalInfo[0].replace('Genesene Personen: ', '');
+        const totalDeaths = additionalInfo[1].replace('Todesfälle: ', '');
+        const [text, date, hours] = $('.abstract strong').eq(0).text().split('\n')[0].split(',');
         const splitDate = date.split('.');
         const dummyDate = new Date(`${splitDate[1]}/${splitDate[0]}/${splitDate[2]} ${hours.trim().slice(0, 4)}`);
         const lastUpdated = new Date(Date.UTC(dummyDate.getFullYear(), dummyDate.getMonth(), dummyDate.getDate(), dummyDate.getHours()));
@@ -76,6 +77,7 @@ Apify.main(async () => {
         totalDeaths: parseNum(extracted.totalDeaths),
         infectedByRegion: extracted.infectedByRegion,
         curedByRegion: extracted.curedByRegion,
+        deathByRegion: extracted.deathByRegion,
         sourceUrl: url,
         lastUpdatedAtSource: extracted.lastUpdated,
         lastUpdatedAtApify: new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, now.getMinutes())).toISOString(),
