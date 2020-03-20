@@ -35,8 +35,7 @@ Apify.main(async () => {
             return info;
         };
         const basicInfo = Array.from(document.querySelectorAll('.abstract strong')).map(info => info.textContent);
-        const totalTested = $('strong:contains(Bisher durchgeführte Testungen)').next().text().trim();
-        console.log(totalTested);
+        const totalTested = $('strong:contains(Bisher durchgeführte Testungen)').eq(0).next().text().trim();
         const totalInfected = $('strong:contains(Bestätigte Fälle)').next().text().trim();
         const additionalInfo = $('strong:contains(Genesene Personen)').text().split('\n');
         const totalCured = additionalInfo[0].replace('Genesene Personen: ', '');
@@ -69,6 +68,7 @@ Apify.main(async () => {
             deathByRegion,
         };
     });
+    console.log(extracted.totalTested);
 
     const now = new Date();
     const data = {
