@@ -1,15 +1,16 @@
 const Apify = require('apify');
+const extractNumbers = require('extract-numbers');
 
 const LATEST = 'LATEST';
 const parseNum = (str) => {
-    return parseInt(str.replace('.', ''), 10);
+    return parseInt(extractNumbers(str)[0].replace('.', ''), 10);
 };
 Apify.main(async () => {
     const url = 'https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html';
     const kvStore = await Apify.openKeyValueStore('COVID-19-AUSTRIA');
     const dataset = await Apify.openDataset('COVID-19-AUSTRIA-HISTORY');
 
-    const browser = await Apify.launchPuppeteer({ useApifyProxy: true, apifyProxyGroups: ['SHADER'] });
+    const browser = await Apify.launchPuppeteer({ useApifyProxy: true, apifyProxyGroups: ['SHADER'], headless: false });
     const page = await browser.newPage();
     await Apify.utils.puppeteer.injectJQuery(page);
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
@@ -35,12 +36,15 @@ Apify.main(async () => {
             return info;
         };
         const basicInfo = Array.from(document.querySelectorAll('.abstract strong')).map(info => info.textContent);
-        const totalTested = $('strong:contains(Bisher durchgeführte Testungen)').eq(0).next().text().trim();
-        const totalInfected = $('strong:contains(Bestätigte Fälle)').next().text().trim();
+        const firstInfo = $('.abstract strong').eq(0).text().split('\n');
+        console.log(basicInfo, firstInfo);
+        const totalTested = firstInfo[1];
+        const totalInfected = basicInfo[1];
         const additionalInfo = $('strong:contains(Genesene Personen)').text().split('\n');
-        const totalCured = additionalInfo[0].replace('Genesene Personen: ', '');
-        const totalDeaths = additionalInfo[1].replace('Todesfälle: ', '');
-        const [text, date, hours] = $('.abstract strong').eq(0).text().split('\n')[0].split(',');
+        console.log(additionalInfo);
+        const totalCured = additionalInfo[0];
+        const totalDeaths = additionalInfo[1];
+        const [text, date, hours] = firstInfo[0].split(',');
         const splitDate = date.split('.');
         const dummyDate = new Date(`${splitDate[1]}/${splitDate[0]}/${splitDate[2]} ${hours.trim().slice(0, 4)}`);
         const lastUpdated = new Date(Date.UTC(dummyDate.getFullYear(), dummyDate.getMonth(), dummyDate.getDate(), dummyDate.getHours()));
@@ -68,7 +72,7 @@ Apify.main(async () => {
             deathByRegion,
         };
     });
-    console.log(extracted.totalTested);
+
 
     const now = new Date();
     const data = {
