@@ -10,7 +10,7 @@ Apify.main(async () => {
     const kvStore = await Apify.openKeyValueStore('COVID-19-AUSTRIA');
     const dataset = await Apify.openDataset('COVID-19-AUSTRIA-HISTORY');
 
-    const browser = await Apify.launchPuppeteer({ useApifyProxy: true, apifyProxyGroups: ['SHADER'], headless: false });
+    const browser = await Apify.launchPuppeteer({ useApifyProxy: true, apifyProxyGroups: ['SHADER'] });
     const page = await browser.newPage();
     await Apify.utils.puppeteer.injectJQuery(page);
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
