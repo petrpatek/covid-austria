@@ -5,6 +5,7 @@ const LATEST = 'LATEST';
 const parseNum = (str) => {
     return parseInt(extractNumbers(str)[0].replace('.', ''), 10);
 };
+
 Apify.main(async () => {
     const url = 'https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html';
     const kvStore = await Apify.openKeyValueStore('COVID-19-AUSTRIA');
@@ -35,16 +36,9 @@ Apify.main(async () => {
             });
             return info;
         };
-        const basicInfo = Array.from(document.querySelectorAll('.abstract strong')).map(info => info.textContent);
-        const firstInfo = $('.abstract strong').eq(0).text().split('\n');
-        console.log(basicInfo, firstInfo);
-        const totalTested = firstInfo[1];
-        const totalInfected = basicInfo[1];
-        const additionalInfo = $('strong:contains(Genesene Personen)').text().split('\n');
-        console.log(additionalInfo);
-        const totalCured = additionalInfo[0];
-        const totalDeaths = additionalInfo[1];
-        const [text, date, hours] = firstInfo[0].split(',');
+
+        const totalTested = $('p:contains(Bisher durchgeführte Testungen)').text();
+        console.log(totalTested, 'TESTED');
         const splitDate = date.split('.');
         const dummyDate = new Date(`${splitDate[1]}/${splitDate[0]}/${splitDate[2]} ${hours.trim().slice(0, 4)}`);
         const lastUpdated = new Date(Date.UTC(dummyDate.getFullYear(), dummyDate.getMonth(), dummyDate.getDate(), dummyDate.getHours()));
