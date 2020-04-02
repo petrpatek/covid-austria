@@ -35,7 +35,7 @@ const extractDataFromParagraph = (paragraphText) => {
     return {
         total: parseNum(extractNumbers(split[1])[0]),
         byRegion: processInfoString(split[2]),
-        date: new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes())).toISOString(),
+        date: new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours() - 2, date.getMinutes())).toISOString(),
 
     };
 };
