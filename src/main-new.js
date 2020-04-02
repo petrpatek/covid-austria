@@ -29,9 +29,14 @@ const processInfoString = (str) => {
 };
 const extractDataFromParagraph = (paragraphText) => {
     const split = paragraphText.split(': ');
+    const introSplit = split[0].split(', ');
+    const dateSplit = introSplit[1].replace('Stand ', '').split('.');
+    const date = new Date(`${dateSplit[1]}/${dateSplit[0]}/${dateSplit[2]} ${introSplit[2].replace(' Uhr', '')}`);
     return {
         total: parseNum(extractNumbers(split[1])[0]),
         byRegion: processInfoString(split[2]),
+        date: new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes())).toISOString(),
+
     };
 };
 Apify.main(async () => {
@@ -77,6 +82,7 @@ Apify.main(async () => {
                     data.deceasedByRegion = extratedDeaths.byRegion;
                     data.recovered = recovered;
                     data.tested = tested;
+                    data.lastudpatedAtSource = extratedInfected.date;
                     break;
                 case HOSPITALIZATION:
                     const tableData = [];
@@ -105,6 +111,9 @@ Apify.main(async () => {
         },
     });
     await crawler.run();
+    const now = new Date();
+    data.lastUpdatedAtApify = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes())).toISOString();
+
     console.log(data);
 
     let latest = await kvStore.getValue(LATEST);
