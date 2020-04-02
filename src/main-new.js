@@ -89,8 +89,8 @@ Apify.main(async () => {
                     });
                     tableData.splice(tableData.length - 1, 1);
                     data.hospitalizationData = tableData;
-                    data.totalIcu = tableData.reduce((total, val) => total + val.icu, 0) / 2;
-                    data.totalHospitalized = tableData.reduce((total, val) => total + val.hospitalized, 0) / 2;
+                    data.totalIcu = tableData.reduce((total, val) => total + val.icu, 0);
+                    data.totalHospitalized = tableData.reduce((total, val) => total + val.hospitalized, 0);
 
                     break;
 
