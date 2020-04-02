@@ -9,6 +9,7 @@ const MAIN_STATS = 'MAIN_STATS';
 const HOSPITALIZATION = 'HOSPITALIZATION';
 
 const getNameAndValue = (str) => {
+    console.log(str);
     const split = str.split(' (');
     return { name: split[0].trim(), value: parseNum(split[1].replace(')', '').trim(), 10) };
 };
@@ -28,14 +29,16 @@ const processInfoString = (str) => {
     return info;
 };
 const extractDataFromParagraph = (paragraphText) => {
-    const split = paragraphText.split(': ');
+    const re = new RegExp(String.fromCharCode(160), 'g');
+    const split = paragraphText.replace(re, ' ').split(': ');
     const introSplit = split[0].split(', ');
     const dateSplit = introSplit[1].replace('Stand ', '').split('.');
-    const date = new Date(`${dateSplit[1]}/${dateSplit[0]}/${dateSplit[2]} ${introSplit[2].replace(' Uhr', '')}`);
+    const date = new Date(`${dateSplit[1]}/${dateSplit[0]}/${dateSplit[2]} ${introSplit[2].split(' Uhr')[0]}`);
+    console.log(introSplit, '');
     return {
         total: parseNum(extractNumbers(split[1])[0]),
-        byRegion: processInfoString(split[2]),
-        date: new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours() - 2, date.getMinutes())).toISOString(),
+        byRegion: split[2] && processInfoString(split[2]),
+        date: new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours() - 2, date.getMinutes())),
 
     };
 };
@@ -45,35 +48,28 @@ Apify.main(async () => {
 
     const requestQueue = await Apify.openRequestQueue();
     await requestQueue.addRequest({
-        url: 'https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html',
+        url: 'http://web.archive.org/web/20200318180034/https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html',
         userData: {
             label: MAIN_STATS,
         },
     });
 
-    await requestQueue.addRequest({
-        url: 'https://www.sozialministerium.at/Informationen-zum-Coronavirus/Dashboard/Zahlen-zur-Hospitalisierung',
-        userData: {
-            label: HOSPITALIZATION,
-        },
-    });
-    const data = {};
-
     const crawler = new Apify.CheerioCrawler({
         requestQueue,
         handlePageFunction: async ({ request, $ }) => {
-            const { label } = request.userData;
+            const { label, data = {}, shouldScrapeHospitalized } = request.userData;
 
             switch (label) {
                 case MAIN_STATS:
-                    const confirmedCasesParagraph = $('p:contains(Bestätigte Fälle)').text();
-                    const deathsParagraph = $('p:contains(Todesfälle)').text();
-                    const recoveredParagraph = $('p:contains(Genesen)').text();
-                    const testedParagraph = $('p:contains(Bisher durchgeführte Testungen in Österreich)').text();
+                    const confirmedCasesParagraph = $('p:contains(Bestätigte Fälle)').last().text();
+                    const deathsParagraph = $('p:contains(Todesfälle)').last().text();
+                    const recoveredParagraph = $('p:contains(Genesen)').last().text();
+                    const testedParagraph = $('p:contains(Bisher durchgeführte Testungen in Österreich)').last().text();
 
                     const extratedInfected = extractDataFromParagraph(confirmedCasesParagraph);
                     const extratedDeaths = extractDataFromParagraph(deathsParagraph);
-                    const recovered = parseNum(recoveredParagraph.split(': ')[1].trim());
+                    console.log(recoveredParagraph ? 'Prdel' : 'NE', 'REC', testedParagraph);
+                    const recovered = recoveredParagraph && parseNum(recoveredParagraph.split(': ')[1].trim());
                     const tested = parseNum(testedParagraph.split(': ')[1].trim());
 
                     data.infected = extratedInfected.total;
@@ -82,22 +78,54 @@ Apify.main(async () => {
                     data.deceasedByRegion = extratedDeaths.byRegion;
                     data.recovered = recovered;
                     data.tested = tested;
-                    data.lastudpatedAtSource = extratedInfected.date;
+                    data.source = request.url;
+                    try {
+                        data.lastudpatedAtSource = extratedInfected.date.toISOString();
+                    } catch (e) {
+                        console.log(extratedInfected.date);
+                    }
+
+                    await requestQueue.addRequest({
+                        url: request.url.replace('https://www.sozialministerium.at/Informationen-zum-Coronavirus/Neuartiges-Coronavirus-(2019-nCov).html', 'https://www.sozialministerium.at/Informationen-zum-Coronavirus/Dashboard/Zahlen-zur-Hospitalisierung'),
+                        userData: {
+                            label: HOSPITALIZATION,
+                            data,
+                            shouldScrapeHospitalized: new Date('03/26/2020 00:00') < extratedInfected.date,
+                        },
+                    });
+                    const nextDayLink = $('#displayDayEl').next().find('a').attr('href');
+
+                    if (nextDayLink) {
+                        await requestQueue.addRequest({
+                            url: nextDayLink,
+                            userData: {
+                                label: MAIN_STATS,
+
+                            },
+                        });
+                    }
                     break;
                 case HOSPITALIZATION:
                     const tableData = [];
-                    $('table tbody tr').each((index, element) => {
-                        tableData.push({
-                            region: $(element).find('td').eq(0).text(),
-                            icu: parseNum($(element).find('td').eq(2).text()),
-                            hospitalized: parseNum($(element).find('td').eq(1).text()),
+                    if (shouldScrapeHospitalized) {
+                        console.log(shouldScrapeHospitalized, data.lastudpatedAtSource);
+                        $('table.table tbody tr').each((index, element) => {
+                            tableData.push({
+                                region: $(element).find('td').eq(0).text(),
+                                icu: parseNum($(element).find('td').eq(2).text()),
+                                hospitalized: parseNum($(element).find('td').eq(1).text()),
+                            });
                         });
-                    });
-                    tableData.splice(tableData.length - 1, 1);
+                        tableData.splice(tableData.length - 1, 1);
+                    }
                     data.hospitalizationData = tableData;
                     data.totalIcu = tableData.reduce((total, val) => total + val.icu, 0);
                     data.totalHospitalized = tableData.reduce((total, val) => total + val.hospitalized, 0);
+                    const now = new Date();
+                    data.lastUpdatedAtApify = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes())).toISOString();
+                    console.log(data);
 
+                    await Apify.pushData(data);
                     break;
 
                 default:
@@ -111,26 +139,7 @@ Apify.main(async () => {
         },
     });
     await crawler.run();
-    const now = new Date();
-    data.lastUpdatedAtApify = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes())).toISOString();
 
-    console.log(data);
-
-    let latest = await kvStore.getValue(LATEST);
-    if (!latest) {
-        await kvStore.setValue('LATEST', data);
-        latest = data;
-    }
-    delete latest.lastUpdatedAtApify;
-    const actual = Object.assign({}, data);
-    delete actual.lastUpdatedAtApify;
-
-    if (JSON.stringify(latest) !== JSON.stringify(actual)) {
-        await dataset.pushData(data);
-    }
-
-    await kvStore.setValue('LATEST', data);
-    await Apify.pushData(data);
 
     console.log('Done.');
 });
