@@ -10,7 +10,7 @@ const HOSPITALIZATION = 'HOSPITALIZATION';
 
 const getNameAndValue = (str) => {
     const split = str.split(' (');
-    return { name: split[0].trim(), value: parseInt(split[1].replace(')', '').trim(), 10) };
+    return { name: split[0].trim(), value: parseNum(split[1].replace(')', '').trim(), 10) };
 };
 const processInfoString = (str) => {
     const split = str.split(',');
@@ -88,8 +88,8 @@ Apify.main(async () => {
                         });
                     });
                     data.hospitalizationData = tableData;
-                    data.totalIcu = tableData.reduce((total, val) => total + val.icu, 0);
-                    data.totalHospitalized = tableData.reduce((total, val) => total + val.hospitalized, 0);
+                    data.totalIcu = tableData.reduce((total, val) => total + val.icu, 0) / 2;
+                    data.totalHospitalized = tableData.reduce((total, val) => total + val.hospitalized, 0) / 2;
 
                     break;
 
