@@ -87,7 +87,7 @@ Apify.main(async () => {
                             hospitalized: parseNum($(element).find('td').eq(1).text()),
                         });
                     });
-                    delete tableData[tableData.length - 1];
+                    tableData.splice(tableData.length - 1, 1);
                     data.hospitalizationData = tableData;
                     data.totalIcu = tableData.reduce((total, val) => total + val.icu, 0) / 2;
                     data.totalHospitalized = tableData.reduce((total, val) => total + val.hospitalized, 0) / 2;
